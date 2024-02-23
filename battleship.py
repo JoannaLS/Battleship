@@ -6,21 +6,21 @@ ship_sizes = [5, 3, 2]
 ship_quantities = [1, 2, 3]
 
 def display_grid(grid):
-    # Display the grid with numbers for lines and columns
+    # Display the grid with letters for columns and numbers for lines
     print("\nPlayer's Grid:")
-    print("  0  1  2  3  4  5  6  7  8  9")
+    print("  A  B  C  D  E  F  G  H  I  J")
     for i, row in enumerate(grid):
         print(f"{i} {' '.join(cell.ljust(2) for cell in row)}")
 
 def display_empty_grid():
-    # Display an empty grid with numbers for lines and columns
+    # Display an empty grid with letters for columns and numbers for lines
     empty_grid = [['.' for _ in range(10)] for _ in range(10)]
     display_grid(empty_grid)
 
 def display_moves_grid(player_moves):
-    # Display the player's moves grid with hits and misses
+    # Display the player's moves grid with letters for columns and numbers for lines
     print("\nPlayer's Moves Grid:")
-    print("  0  1  2  3  4  5  6  7  8  9")
+    print("  A  B  C  D  E  F  G  H  I  J")
     for i, row in enumerate(player_moves):
         print(f"{i} {' '.join(cell.ljust(2) for cell in row)}")
 
@@ -47,8 +47,9 @@ def player_ship_positions():
 
             while not placed_successfully:
                 try:
+                    y = input("\nEnter column for the ship starting position (A-J): ").upper()
                     x = int(input("\nEnter row for the ship starting position (0-9): "))
-                    y = int(input("\nEnter column for the ship starting position (0-9): "))
+                    y = ord(y) - ord('A')  # Convert letter to corresponding index
                     orientation = input("\nEnter orientation (H for horizontal, V for vertical): ").upper()
 
                     # Verify if the ship placement is valid
@@ -107,11 +108,22 @@ def pc_ship_positions(pc_grid):
 def player_attack(pc_ship_positions_list, pc_grid, moves_grid):
     eliminated_pc_ship_positions = []
 
-    # Player's turn
-    attack_x = int(input("\nEnter row for the attack (0-9): "))
-    attack_y = int(input("\nEnter column for the attack (0-9): "))
-    player_attack_coords = (attack_x, attack_y)
+    while True:
+        # Player's turn
+        try:
+            attack_y = input("\nEnter column for the attack (A-J): ").upper()
+            attack_x = int(input("\nEnter row for the attack (0-9): "))
+            attack_y = ord(attack_y) - ord('A')  # Convert letter to corresponding index
+            player_attack_coords = (attack_x, attack_y)
 
+            # Validate input
+            if 0 <= attack_x <= 9 and 0 <= attack_y <= 9:
+                break
+            else:
+                print("Invalid input. Row should be between 0 and 9, and column should be between A and J. Try again.")
+        except (ValueError, IndexError):
+            print("Invalid input. Please enter valid values and try again.")
+    
     # Check if the attack hits a ship
     if player_attack_coords in pc_ship_positions_list:
         print("Player has hit a ship!")
@@ -160,6 +172,11 @@ def pc_attack(player_ships, player_grid, pc_ship_positions_list, moves_grid, las
 
     return bool(eliminated_player_ship_positions), last_hit_coords
 
+def display_pc_move_coordinates(pc_attack_coords):
+    letter = chr(pc_attack_coords[1] + ord('A'))
+    number = pc_attack_coords[0]
+    print(f"PC's Move: Column {letter}, Row {number}")
+
 def get_next_attack_coords(player_grid, last_hit_coords):
     # Returns the next attack coordinates based on the last hit
     x, y = last_hit_coords
@@ -173,7 +190,7 @@ def get_next_attack_coords(player_grid, last_hit_coords):
     else:
         # If no valid surrounding coordinates, go back to random attacks
         return None
-
+    
 def check_player_ship_destroyed(pc_attack, player_ship_positions, player_grid):
     # Check if the attack hits a player ship
     if pc_attack in player_ship_positions:
@@ -213,10 +230,17 @@ def main():
 
     # Initialize moves grid
     moves_grid = [['.' for _ in range(10)] for _ in range(10)]  # Initialize moves grid
+    
+    # Initialize turn counter
+    turn_counter = 0
 
     # Main game loop
     game_over = False
     while not game_over:
+        # Increment turn counter
+        turn_counter += 1
+        print(f"\nTurn {turn_counter}")
+
         display_moves_grid(moves_grid)  # Display the initial moves grid
 
         # Player's turn
@@ -247,4 +271,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
