@@ -105,7 +105,7 @@ def pc_ship_positions(pc_grid):
 
     return pc_ship_positions, pc_grid, pc_ships
 
-def player_attack(pc_ship_positions_list, pc_grid, moves_grid):
+def player_attack(pc_ship_positions_list, pc_grid, moves_grid, previous_player_attacks):
     eliminated_pc_ship_positions = []
 
     while True:
@@ -117,25 +117,28 @@ def player_attack(pc_ship_positions_list, pc_grid, moves_grid):
             player_attack_coords = (attack_x, attack_y)
 
             # Validate input
-            if 0 <= attack_x <= 9 and 0 <= attack_y <= 9:
+            if 0 <= attack_x <= 9 and 0 <= attack_y <= 9 and player_attack_coords not in previous_player_attacks:
                 break
             else:
-                print("Invalid input. Row should be between 0 and 9, and column should be between A and J. Try again.")
+                print("Invalid input. Try again")
         except (ValueError, IndexError):
             print("Invalid input. Please enter valid values and try again.")
     
     # Check if the attack hits a ship
     if player_attack_coords in pc_ship_positions_list:
-        print("Player has hit a ship!")
+        print("\nPlayer has hit a ship!")
         pc_ship_positions_list.remove(player_attack_coords)
         eliminated_pc_ship_positions.append(player_attack_coords)  # Mark as eliminated
         update_moves_grid(moves_grid, player_attack_coords, "H")  # Update moves grid with a hit
        
     else:
-        print("Player Miss!")
+        print("\nPlayer Miss!")
         update_moves_grid(moves_grid, player_attack_coords, "M")  # Update moves grid with a miss
 
-    return player_attack_coords, player_attack_coords in eliminated_pc_ship_positions
+    # Add the chosen coordinates to the list of previous player attacks
+    previous_player_attacks.append(player_attack_coords)
+
+    return player_attack_coords, eliminated_pc_ship_positions, previous_player_attacks
 
 def pc_attack(player_ships, player_grid, pc_ship_positions_list, moves_grid, last_hit_coords=None):
     eliminated_player_ship_positions = []
@@ -144,41 +147,39 @@ def pc_attack(player_ships, player_grid, pc_ship_positions_list, moves_grid, las
 
     if last_hit_coords is not None:
         # If the PC has a previous hit, try to attack in the vicinity
-        pc_attack_x, pc_attack_y = get_next_attack_coords(player_grid, last_hit_coords)
+        pc_attack_coords = pc_choose_attack(player_grid, last_hit_coords)
     else:
         # Otherwise, make a random attack
+        pc_attack_coords = pc_random_attack(player_grid)
+
+    display_pc_move_coordinates(pc_attack_coords)
+
+    # Check if the attack hits a player ship
+    if pc_attack_coords in player_ships:
+        print("\nPC has hit a ship!")
+        player_ships.remove(pc_attack_coords)
+        eliminated_player_ship_positions.append(pc_attack_coords)  # Mark as eliminated
+        player_grid[pc_attack_coords[0]][pc_attack_coords[1]] = "H"  # Mark the hit on the player's grid
+
+        # If the PC has a previous hit, keep track of it
+        last_hit_coords = pc_attack_coords
+    else:
+        print("\nPC Miss!")
+        player_grid[pc_attack_coords[0]][pc_attack_coords[1]] = "M"  # Mark the miss on the player's grid
+        last_hit_coords = None  # Reset last_hit_coords if the attack misses
+
+    return eliminated_player_ship_positions, last_hit_coords
+
+def pc_random_attack(player_grid):
+    # Returns random attack coordinates that haven't been tried before
+    while True:
         pc_attack_x = random.randint(0, 9)
         pc_attack_y = random.randint(0, 9)
 
-    pc_attack = (pc_attack_x, pc_attack_y)
+        if player_grid[pc_attack_x][pc_attack_y] not in ["H", "M"]:
+            return pc_attack_x, pc_attack_y
 
-    display_pc_move_coordinates(pc_attack)
-
-    # Check if the attack hits a player ship
-    if pc_attack in player_ships:
-        print("PC has hit a ship!")
-        player_ships.remove(pc_attack)
-        eliminated_player_ship_positions.append(pc_attack)  # Mark as eliminated
-        player_grid[pc_attack_x][pc_attack_y] = "H"  # Mark the hit on the player's grid
-
-       
-    else:
-        print("PC Miss!")
-        player_grid[pc_attack_x][pc_attack_y] = "M"  # Mark the miss on the player's grid
-
-        # If the PC has a previous hit, keep attacking in the same direction
-        if last_hit_coords is not None:
-            last_hit_coords = get_next_attack_coords(player_grid, last_hit_coords)
-
-    return bool(eliminated_player_ship_positions), last_hit_coords
-
-def display_pc_move_coordinates(pc_attack_coords):
-    letter = chr(pc_attack_coords[1] + ord('A'))
-    number = pc_attack_coords[0]
-    print(f"PC's Move: Column {letter}, Row {number}")
-
-def get_next_attack_coords(player_grid, last_hit_coords):
-    # Returns the next attack coordinates based on the last hit
+def pc_choose_attack(player_grid, last_hit_coords):
     x, y = last_hit_coords
 
     # Check surrounding coordinates (up, down, left, right) and choose randomly
@@ -189,13 +190,18 @@ def get_next_attack_coords(player_grid, last_hit_coords):
         return random.choice(valid_coords)
     else:
         # If no valid surrounding coordinates, go back to random attacks
-        return None
-    
+        return pc_random_attack(player_grid)
+
+def display_pc_move_coordinates(pc_attack):
+    letter = chr(pc_attack[1] + ord('A'))
+    number = pc_attack[0]
+    print(f"PC's Move: Column {letter}, Row {number}")
+ 
 def check_player_ship_destroyed(pc_attack, player_ship_positions, player_grid):
     # Check if the attack hits a player ship
     if pc_attack in player_ship_positions:
         x, y = pc_attack
-        print("PC has hit a ship!")
+        print("\nPC has hit a ship!")
         player_ship_positions.remove((x, y))
 
     return False
@@ -204,13 +210,10 @@ def check_pc_ship_destroyed(player_attack, pc_ship_positions, pc_grid):
     # Check if the attack hits a player ship
     if player_attack in pc_ship_positions:
         x, y = player_attack
-        print("Player has hit a ship!")
+        print("\nPlayer has hit a ship!")
         pc_ship_positions.remove((x, y))
 
     return False
-
-def display_pc_move_coordinates(pc_attack):
-    print(f"PC's Move: Row {pc_attack[0]}, Column {pc_attack[1]}")
 
 def main():
     # Start message
@@ -223,6 +226,7 @@ def main():
     pc_ship_positions_list = []
 
     # Get player ship positions and grid
+    previous_player_attacks = []  # New list to track player's previous attacks
     player_ships, player_grid = player_ship_positions()
 
     # Get pc ship positions, grid, and ships
@@ -234,17 +238,20 @@ def main():
     # Initialize turn counter
     turn_counter = 0
 
+    # Initialize last_hit_coords
+    last_hit_coords = None
+
     # Main game loop
     game_over = False
     while not game_over:
         # Increment turn counter
         turn_counter += 1
-        print(f"\nTurn {turn_counter}")
+        print(f"\n            Turn {turn_counter}             ")
 
         display_moves_grid(moves_grid)  # Display the initial moves grid
 
         # Player's turn
-        player_attack_coords, player_result = player_attack(pc_ship_positions_list, pc_grid, moves_grid)
+        player_attack_coords, player_result, previous_player_attacks = player_attack(pc_ship_positions_list, pc_grid, moves_grid, previous_player_attacks)
         update_moves_grid(moves_grid, player_attack_coords, "H" if player_result else "M")
 
         # Check if player has won
@@ -253,7 +260,7 @@ def main():
             break  # Exit the loop if the player has won
 
         # PC's turn
-        pc_hit = pc_attack(player_ships, player_grid, pc_ship_positions_list, moves_grid)
+        pc_hit, last_hit_coords = pc_attack(player_ships, player_grid, pc_ship_positions_list, moves_grid, last_hit_coords)
 
         # Display the updated player's grid and moves grid after both turns
         display_grid(player_grid)
